@@ -16,4 +16,4 @@ A real-time chat app with authentication using WebSockets and ReactJS.
 - WebSocket
 - Material UI
 
-<pre> ## 🧩 Project Flow (Mermaid Diagram) ```mermaid sequenceDiagram participant User participant Browser participant Server User->>Browser: Open Chat App Browser->>Server: WebSocket Connection Server-->>Browser: Connection Established User->>Browser: Type Message Browser->>Server: Send Message Server-->>All Users: Broadcast Message ``` </pre>
+<pre> ## 🗂️ Project Structure ```mermaid graph TD A[src] --> B(components) A --> C(pages) A --> D(services) A --> E(sockets) A --> F(App.js) A --> G(index.js) B --> B1(ChatBox.jsx) B --> B2/MessageItem.jsx C --> C1/Login.jsx C --> C2/Home.jsx D --> D1/api.js E --> E1/socket.js ``` </pre>
