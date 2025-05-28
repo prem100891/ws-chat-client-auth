@@ -1,4 +1,4 @@
-// App.js (Frontend with OTP + Invite + Chat)
+// App.js (Frontend with OTP resend timer, attempt limit, and animated transitions)
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import {
@@ -9,7 +9,8 @@ import {
   Snackbar,
   Alert,
   Box,
-  CircularProgress
+  CircularProgress,
+  Fade
 } from "@mui/material";
 
 const socket = io("https://ws-chat-server-v6ih.onrender.com", {
@@ -21,7 +22,10 @@ function App() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [isOtpSent, setIsOtpSent] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [otpAttempts, setOtpAttempts] = useState(0);
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
   const [inviteNumber, setInviteNumber] = useState("");
@@ -35,8 +39,16 @@ function App() {
     return () => socket.off("receive-message");
   }, []);
 
+  useEffect(() => {
+    let timer;
+    if (resendTimer > 0) {
+      timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendTimer]);
+
   const sendOtp = async () => {
-    if (!phone) return;
+    if (!phone || otpAttempts >= 3) return;
     setLoading(true);
     try {
       const res = await fetch("https://ws-chat-server-v6ih.onrender.com/send-otp", {
@@ -45,6 +57,11 @@ function App() {
         body: JSON.stringify({ phone })
       });
       const data = await res.json();
+      if (res.ok) {
+        setIsOtpSent(true);
+        setResendTimer(30); // 30 sec timer
+        setOtpAttempts(prev => prev + 1);
+      }
       setSnack({ open: true, message: data.message, type: res.ok ? "success" : "error" });
     } catch (err) {
       setSnack({ open: true, message: "Failed to send OTP", type: "error" });
@@ -111,17 +128,35 @@ function App() {
       </Typography>
 
       {!isVerified ? (
-        <Box>
-          <TextField label="Your Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth sx={{ mb: 2 }} />
-          <TextField label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth sx={{ mb: 2 }} />
-          <Button onClick={sendOtp} variant="outlined" disabled={loading} fullWidth>
-            {loading ? <CircularProgress size={24} /> : "Send OTP"}
-          </Button>
-          <TextField label="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} fullWidth sx={{ my: 2 }} />
-          <Button onClick={verifyOtp} variant="contained" disabled={loading} fullWidth>
-            {loading ? <CircularProgress size={24} /> : "Verify OTP"}
-          </Button>
-        </Box>
+        <Fade in={!isVerified} timeout={400}>
+          <Box>
+            <TextField label="Your Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth sx={{ mb: 2 }} />
+            <TextField label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth sx={{ mb: 2 }} />
+            <Button
+              onClick={sendOtp}
+              variant="outlined"
+              disabled={loading || resendTimer > 0 || otpAttempts >= 3}
+              fullWidth
+            >
+              {loading ? <CircularProgress size={24} /> : resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Send OTP"}
+            </Button>
+
+            {isOtpSent && (
+              <>
+                <TextField label="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} fullWidth sx={{ my: 2 }} />
+                <Button onClick={verifyOtp} variant="contained" disabled={loading} fullWidth>
+                  {loading ? <CircularProgress size={24} /> : "Verify OTP"}
+                </Button>
+              </>
+            )}
+
+            {otpAttempts >= 3 && (
+              <Typography color="error" sx={{ mt: 1 }}>
+                ⚠️ You have reached the maximum OTP request attempts.
+              </Typography>
+            )}
+          </Box>
+        </Fade>
       ) : (
         <>
           <Box mb={2}>
