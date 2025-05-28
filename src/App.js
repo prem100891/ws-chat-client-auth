@@ -9,7 +9,6 @@ const App = () => {
   const [userContact, setUserContact] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
-  const [serverOtp, setServerOtp] = useState("");
   const [isVerified, setIsVerified] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [input, setInput] = useState("");
@@ -20,25 +19,56 @@ const App = () => {
   const isMobileValid = /^\d{10}$/.test(userContact);
   const isFormValid = isNameValid && isMobileValid && isVerified;
 
+  const serverUrl = "https://ws-chat-server-v6ih.onrender.com";
+
   const handleSendOtp = async () => {
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setServerOtp(generatedOtp);
     setOtpSent(true);
-    await fetch("https://ws-chat-server-v6ih.onrender.com/send-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: `+91${userContact}`,
-        otp: generatedOtp
-      })
-    });
+
+    try {
+      const response = await fetch(`${serverUrl}/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: `+91${userContact}`,
+          otp: generatedOtp
+        })
+      });
+
+      const result = await response.json();
+      if (!result.success) {
+        alert("❌ Failed to send OTP: " + result.error);
+      } else {
+        alert("✅ OTP sent to your mobile number.");
+      }
+    } catch (err) {
+      alert("❌ Error while sending OTP.");
+      console.error(err);
+    }
   };
 
-  const handleVerifyOtp = () => {
-    if (otp === serverOtp) {
-      setIsVerified(true);
-    } else {
-      alert("❌ OTP is incorrect");
+  const handleVerifyOtp = async () => {
+    try {
+      const response = await fetch(`${serverUrl}/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: `+91${userContact}`,
+          otp
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setIsVerified(true);
+        alert("✅ OTP verified successfully!");
+      } else {
+        alert("❌ " + result.message);
+      }
+    } catch (err) {
+      alert("❌ Error verifying OTP.");
+      console.error(err);
     }
   };
 
@@ -49,7 +79,7 @@ const App = () => {
   useEffect(() => {
     if (!loggedIn) return;
 
-    ws.current = new WebSocket("https://ws-chat-server-v6ih.onrender.com");
+    ws.current = new WebSocket(serverUrl);
 
     ws.current.onopen = () => {
       ws.current.send(JSON.stringify({
