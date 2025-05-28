@@ -1,4 +1,4 @@
-// App.js (fixed: sendMessage defined + valid room fetch)
+// App.js (Frontend - Room Join Request with Admin Approval)
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import {
@@ -10,7 +10,11 @@ import {
   Alert,
   Box,
   CircularProgress,
-  Fade
+  List,
+  ListItem,
+  ListItemText,
+  ListItemButton,
+  Divider
 } from "@mui/material";
 
 const socket = io("https://ws-chat-server-v6ih.onrender.com", {
@@ -18,44 +22,34 @@ const socket = io("https://ws-chat-server-v6ih.onrender.com", {
 });
 
 function App() {
-  const [room, setRoom] = useState("FAMILY-ROOM");
+  const [room, setRoom] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
-  const [isOtpSent, setIsOtpSent] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
-  const [otpAttempts, setOtpAttempts] = useState(0);
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
-  const [inviteNumber, setInviteNumber] = useState("");
-  const [invitedList, setInvitedList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [snack, setSnack] = useState({ open: false, message: "", type: "success" });
 
   useEffect(() => {
     socket.on("receive-message", ({ user, message }) => {
       setChat((prev) => [...prev, { user, message }]);
     });
-    socket.on("join-denied", (msg) => {
-      setSnack({ open: true, message: msg, type: "error" });
+
+    socket.on("pending-requests", (requests) => {
+      setPendingRequests(requests);
     });
+
     return () => {
       socket.off("receive-message");
-      socket.off("join-denied");
+      socket.off("pending-requests");
     };
   }, []);
 
-  useEffect(() => {
-    let timer;
-    if (resendTimer > 0) {
-      timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [resendTimer]);
-
   const sendOtp = async () => {
-    if (!phone || otpAttempts >= 3) return;
+    if (!phone) return;
     setLoading(true);
     try {
       const res = await fetch("https://ws-chat-server-v6ih.onrender.com/send-otp", {
@@ -64,11 +58,6 @@ function App() {
         body: JSON.stringify({ phone })
       });
       const data = await res.json();
-      if (res.ok) {
-        setIsOtpSent(true);
-        setResendTimer(30);
-        setOtpAttempts(prev => prev + 1);
-      }
       setSnack({ open: true, message: data.message, type: res.ok ? "success" : "error" });
     } catch (err) {
       setSnack({ open: true, message: "Failed to send OTP", type: "error" });
@@ -88,7 +77,6 @@ function App() {
       const data = await res.json();
       if (res.ok && data.success) {
         setIsVerified(true);
-        fetchInvitedList(room);
         setSnack({ open: true, message: data.message, type: "success" });
       } else {
         setSnack({ open: true, message: data.message, type: "error" });
@@ -99,22 +87,14 @@ function App() {
     setLoading(false);
   };
 
-  const fetchInvitedList = async (roomName) => {
-    try {
-      const cleanRoom = roomName.trim();
-      const res = await fetch(`https://ws-chat-server-v6ih.onrender.com/room/${encodeURIComponent(cleanRoom)}/invites`);
-      const data = await res.json();
-      setInvitedList(data.invited || []);
-    } catch (err) {
-      console.error("Failed to fetch invited list");
+  const requestToJoinRoom = () => {
+    if (room && name && isVerified) {
+      socket.emit("request-join-room", { room, user: name, phone });
     }
   };
 
-  const joinRoom = () => {
-    if (room && name && isVerified) {
-      fetchInvitedList(room);
-      socket.emit("join-room", { room, user: name, phone });
-    }
+  const approveRequest = (userPhone) => {
+    socket.emit("approve-user", { room, phone: userPhone });
   };
 
   const sendMessage = () => {
@@ -125,103 +105,61 @@ function App() {
     }
   };
 
-  const handleInvite = async () => {
-    if (!inviteNumber) return;
-    try {
-      const res = await fetch("https://ws-chat-server-v6ih.onrender.com/invite-contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: inviteNumber, room, invitedBy: phone })
-      });
-      const data = await res.json();
-      setSnack({ open: true, message: data.message, type: res.ok ? "success" : "error" });
-      setInviteNumber("");
-      if (res.ok) fetchInvitedList(room);
-    } catch (err) {
-      setSnack({ open: true, message: "Invite failed", type: "error" });
-    }
-  };
-
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom>
-        🔐 OTP-Protected Chat with Admin Invites
+        🔐 Chat Room with Admin Approval
       </Typography>
 
       {!isVerified ? (
-        <Fade in={!isVerified} timeout={400}>
-          <Box>
-            <TextField label="Your Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth sx={{ mb: 2 }} />
-            <TextField label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth sx={{ mb: 2 }} />
-            <Button
-              onClick={sendOtp}
-              variant="outlined"
-              disabled={loading || resendTimer > 0 || otpAttempts >= 3}
-              fullWidth
-            >
-              {loading ? <CircularProgress size={24} /> : resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Send OTP"}
-            </Button>
-
-            {isOtpSent && (
-              <>
-                <TextField label="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} fullWidth sx={{ my: 2 }} />
-                <Button onClick={verifyOtp} variant="contained" disabled={loading} fullWidth>
-                  {loading ? <CircularProgress size={24} /> : "Verify OTP"}
-                </Button>
-              </>
-            )}
-
-            {otpAttempts >= 3 && (
-              <Typography color="error" sx={{ mt: 1 }}>
-                ⚠️ You have reached the maximum OTP request attempts.
-              </Typography>
-            )}
-          </Box>
-        </Fade>
+        <Box>
+          <TextField label="Your Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth sx={{ mb: 2 }} />
+          <TextField label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth sx={{ mb: 2 }} />
+          <Button onClick={sendOtp} variant="outlined" disabled={loading} fullWidth>
+            {loading ? <CircularProgress size={24} /> : "Send OTP"}
+          </Button>
+          <TextField label="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} fullWidth sx={{ my: 2 }} />
+          <Button onClick={verifyOtp} variant="contained" disabled={loading} fullWidth>
+            {loading ? <CircularProgress size={24} /> : "Verify OTP"}
+          </Button>
+        </Box>
       ) : (
         <>
-          <Box mb={2}>
-            <TextField label="Room" value={room} onChange={(e) => setRoom(e.target.value)} fullWidth sx={{ mb: 2 }} />
-            <Button variant="contained" color="primary" onClick={joinRoom} fullWidth>
-              Join Room
-            </Button>
-          </Box>
+          <TextField label="Room Name" value={room} onChange={(e) => setRoom(e.target.value)} fullWidth sx={{ mb: 2 }} />
+          <Button variant="contained" color="primary" onClick={requestToJoinRoom} fullWidth>
+            🚪 Request to Join Room
+          </Button>
 
-          {invitedList[0] === phone && (
-            <Box mb={2}>
-              <TextField label="Invite Contact Number" value={inviteNumber} onChange={(e) => setInviteNumber(e.target.value)} fullWidth sx={{ mb: 1 }} />
-              <Button variant="outlined" color="success" onClick={handleInvite} fullWidth>
-                📩 Invite to Room
-              </Button>
-            </Box>
-          )}
-
-          <Box mb={2}>
-            <Typography variant="subtitle1">✅ Invited Members:</Typography>
-            <ul>
-              {invitedList.map((phone, i) => (
-                <li key={i}>{phone}</li>
-              ))}
-            </ul>
-          </Box>
-
-          <Box mb={2}>
-            <TextField label="Type your message" value={message} onChange={(e) => setMessage(e.target.value)} fullWidth sx={{ mb: 1 }} />
-            <Button variant="contained" onClick={sendMessage} fullWidth>
+          <Box my={2}>
+            <TextField label="Message" value={message} onChange={(e) => setMessage(e.target.value)} fullWidth sx={{ mb: 1 }} />
+            <Button onClick={sendMessage} variant="contained" fullWidth>
               Send
             </Button>
           </Box>
 
-          <Box>
-            <Typography variant="h6">💬 Messages:</Typography>
-            <Box sx={{ maxHeight: 300, overflowY: "auto", p: 2, border: "1px solid #ccc", borderRadius: 2 }}>
-              {chat.map((msg, i) => (
-                <Box key={i} mb={1}>
-                  <strong>{msg.user}:</strong> {msg.message}
-                </Box>
-              ))}
-            </Box>
+          <Typography variant="h6">💬 Messages</Typography>
+          <Box sx={{ maxHeight: 300, overflowY: "auto", border: "1px solid #ccc", borderRadius: 2, p: 2 }}>
+            {chat.map((c, i) => (
+              <Box key={i} mb={1}>
+                <strong>{c.user}:</strong> {c.message}
+              </Box>
+            ))}
           </Box>
+
+          {pendingRequests.length > 0 && (
+            <Box mt={4}>
+              <Typography variant="h6">🕒 Pending Requests</Typography>
+              <List>
+                {pendingRequests.map((req, i) => (
+                  <ListItem key={i} disablePadding>
+                    <ListItemText primary={`${req.user} (${req.phone})`} />
+                    <ListItemButton onClick={() => approveRequest(req.phone)}>Approve</ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+              <Divider />
+            </Box>
+          )}
         </>
       )}
 
