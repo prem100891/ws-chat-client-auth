@@ -1,4 +1,4 @@
-// App.js (Frontend with OTP resend timer, attempt limit, and animated transitions)
+// App.js (UI for OTP + Admin-only Invite + List Invited Members)
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import {
@@ -29,6 +29,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
   const [inviteNumber, setInviteNumber] = useState("");
+  const [invitedList, setInvitedList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [snack, setSnack] = useState({ open: false, message: "", type: "success" });
 
@@ -36,7 +37,13 @@ function App() {
     socket.on("receive-message", ({ user, message }) => {
       setChat((prev) => [...prev, { user, message }]);
     });
-    return () => socket.off("receive-message");
+    socket.on("join-denied", (msg) => {
+      setSnack({ open: true, message: msg, type: "error" });
+    });
+    return () => {
+      socket.off("receive-message");
+      socket.off("join-denied");
+    };
   }, []);
 
   useEffect(() => {
@@ -59,7 +66,7 @@ function App() {
       const data = await res.json();
       if (res.ok) {
         setIsOtpSent(true);
-        setResendTimer(30); // 30 sec timer
+        setResendTimer(30);
         setOtpAttempts(prev => prev + 1);
       }
       setSnack({ open: true, message: data.message, type: res.ok ? "success" : "error" });
@@ -81,6 +88,7 @@ function App() {
       const data = await res.json();
       if (res.ok && data.success) {
         setIsVerified(true);
+        fetchInvitedList(room);
         setSnack({ open: true, message: data.message, type: "success" });
       } else {
         setSnack({ open: true, message: data.message, type: "error" });
@@ -91,17 +99,19 @@ function App() {
     setLoading(false);
   };
 
-  const joinRoom = () => {
-    if (room && name && isVerified) {
-      socket.emit("join-room", { room, user: name });
+  const fetchInvitedList = async (room) => {
+    try {
+      const res = await fetch(`https://ws-chat-server-v6ih.onrender.com/room/${room}/invites`);
+      const data = await res.json();
+      setInvitedList(data.invited || []);
+    } catch (err) {
+      console.error("Failed to fetch invited list");
     }
   };
 
-  const sendMessage = () => {
-    if (message.trim()) {
-      socket.emit("send-message", { room, message, user: name });
-      setChat((prev) => [...prev, { user: name, message }]);
-      setMessage("");
+  const joinRoom = () => {
+    if (room && name && isVerified) {
+      socket.emit("join-room", { room, user: name, phone });
     }
   };
 
@@ -111,11 +121,12 @@ function App() {
       const res = await fetch("https://ws-chat-server-v6ih.onrender.com/invite-contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: inviteNumber, room, invitedBy: name })
+        body: JSON.stringify({ phone: inviteNumber, room, invitedBy: phone })
       });
       const data = await res.json();
       setSnack({ open: true, message: data.message, type: res.ok ? "success" : "error" });
       setInviteNumber("");
+      if (res.ok) fetchInvitedList(room);
     } catch (err) {
       setSnack({ open: true, message: "Invite failed", type: "error" });
     }
@@ -124,7 +135,7 @@ function App() {
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom>
-        🔐 OTP-Protected Real-Time Chat
+        🔐 OTP-Protected Chat with Admin Invites
       </Typography>
 
       {!isVerified ? (
@@ -166,11 +177,22 @@ function App() {
             </Button>
           </Box>
 
+          {invitedList[0] === phone && (
+            <Box mb={2}>
+              <TextField label="Invite Contact Number" value={inviteNumber} onChange={(e) => setInviteNumber(e.target.value)} fullWidth sx={{ mb: 1 }} />
+              <Button variant="outlined" color="success" onClick={handleInvite} fullWidth>
+                📩 Invite to Room
+              </Button>
+            </Box>
+          )}
+
           <Box mb={2}>
-            <TextField label="Invite Contact Number" value={inviteNumber} onChange={(e) => setInviteNumber(e.target.value)} fullWidth sx={{ mb: 1 }} />
-            <Button variant="outlined" color="success" onClick={handleInvite} fullWidth>
-              📩 Invite to Room
-            </Button>
+            <Typography variant="subtitle1">✅ Invited Members:</Typography>
+            <ul>
+              {invitedList.map((phone, i) => (
+                <li key={i}>{phone}</li>
+              ))}
+            </ul>
           </Box>
 
           <Box mb={2}>
