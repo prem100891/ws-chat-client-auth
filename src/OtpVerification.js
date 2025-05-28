@@ -4,48 +4,44 @@ import {
   TextField,
   Button,
   Typography,
-  CircularProgress,
   Snackbar,
-  Alert
+  Alert,
+  CircularProgress
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
-function App() {
-  const [phone, setPhone] = useState("");
+const OtpVerification = () => {
+  const location = useLocation();
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [snack, setSnack] = useState({ open: false, message: "", type: "success" });
-  const navigate = useNavigate();
 
-  const handleSendOtp = async () => {
-    if (!phone) {
-      setSnack({ open: true, message: "Phone number is required", type: "warning" });
+  const phone = location.state?.phone || "";
+
+  const handleVerifyOtp = async () => {
+    if (!phone || !otp) {
+      setSnack({ open: true, message: "Phone and OTP required", type: "warning" });
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch("https://ws-chat-server-v6ih.onrender.com/send-otp", {
+      const response = await fetch("https://ws-chat-server-v6ih.onrender.com/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone, otp }),
         credentials: "include"
       });
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         setSnack({ open: true, message: data.message, type: "success" });
-
-        // 👇 Go to OTP verification screen with phone number
-        setTimeout(() => {
-          navigate("/verify", { state: { phone } });
-        }, 1000);
-
       } else {
-        throw new Error(data.error || "Failed to send OTP");
+        throw new Error(data.message || "Invalid OTP");
       }
     } catch (error) {
       setSnack({ open: true, message: error.message, type: "error" });
@@ -55,9 +51,9 @@ function App() {
   };
 
   return (
-    <Container maxWidth="sm" style={{ marginTop: "5rem", textAlign: "center" }}>
+    <Container maxWidth="sm" style={{ marginTop: "4rem", textAlign: "center" }}>
       <Typography variant="h5" gutterBottom>
-        🔐 Enter your phone to receive OTP
+        ✅ Verify OTP
       </Typography>
 
       <TextField
@@ -65,18 +61,27 @@ function App() {
         variant="outlined"
         fullWidth
         value={phone}
-        onChange={(e) => setPhone(e.target.value)}
+        disabled
+        style={{ marginBottom: "1rem" }}
+      />
+
+      <TextField
+        label="Enter OTP"
+        variant="outlined"
+        fullWidth
+        value={otp}
+        onChange={(e) => setOtp(e.target.value)}
         style={{ marginBottom: "1.5rem" }}
       />
 
       <Button
         variant="contained"
-        color="primary"
-        onClick={handleSendOtp}
+        color="success"
+        onClick={handleVerifyOtp}
         disabled={loading}
         fullWidth
       >
-        {loading ? <CircularProgress size={24} /> : "Send OTP"}
+        {loading ? <CircularProgress size={24} /> : "Verify OTP"}
       </Button>
 
       <Snackbar
@@ -95,6 +100,6 @@ function App() {
       </Snackbar>
     </Container>
   );
-}
+};
 
-export default App;
+export default OtpVerification;
