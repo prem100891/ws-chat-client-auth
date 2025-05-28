@@ -49,7 +49,7 @@ const App = () => {
   useEffect(() => {
     if (!loggedIn) return;
 
-    ws.current = new WebSocket("https://ws-chat-server-v6ih.onrender.com:10000");
+    ws.current = new WebSocket("https://ws-chat-server-v6ih.onrender.com");
 
     ws.current.onopen = () => {
       ws.current.send(JSON.stringify({
