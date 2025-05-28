@@ -1,4 +1,4 @@
-// App.js (UI for OTP + Admin-only Invite + List Invited Members)
+// App.js (fixed: sendMessage defined + valid room fetch)
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import {
@@ -99,9 +99,10 @@ function App() {
     setLoading(false);
   };
 
-  const fetchInvitedList = async (room) => {
+  const fetchInvitedList = async (roomName) => {
     try {
-      const res = await fetch(`https://ws-chat-server-v6ih.onrender.com/room/${room}/invites`);
+      const cleanRoom = roomName.trim();
+      const res = await fetch(`https://ws-chat-server-v6ih.onrender.com/room/${encodeURIComponent(cleanRoom)}/invites`);
       const data = await res.json();
       setInvitedList(data.invited || []);
     } catch (err) {
@@ -111,7 +112,16 @@ function App() {
 
   const joinRoom = () => {
     if (room && name && isVerified) {
+      fetchInvitedList(room);
       socket.emit("join-room", { room, user: name, phone });
+    }
+  };
+
+  const sendMessage = () => {
+    if (message.trim()) {
+      socket.emit("send-message", { room, message, user: name });
+      setChat((prev) => [...prev, { user: name, message }]);
+      setMessage("");
     }
   };
 
