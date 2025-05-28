@@ -1,211 +1,92 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
-  Container, TextField, Button, Box, Typography, Paper, List,
-  ListItem, ListItemText
+  Container,
+  TextField,
+  Button,
+  Typography,
+  CircularProgress,
+  Snackbar,
+  Alert
 } from "@mui/material";
 
-const App = () => {
-  const [username, setUsername] = useState("");
-  const [userContact, setUserContact] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [isVerified, setIsVerified] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([]);
-  const ws = useRef(null);
-
-  const isNameValid = username.trim().length > 0;
-  const isMobileValid = /^\d{10}$/.test(userContact);
-  const isFormValid = isNameValid && isMobileValid && isVerified;
-
-  const serverUrl = "https://ws-chat-server-v6ih.onrender.com";
+function App() {
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [snack, setSnack] = useState({ open: false, message: "", type: "success" });
 
   const handleSendOtp = async () => {
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setOtpSent(true);
+    if (!phone) {
+      setSnack({ open: true, message: "Phone number is required", type: "warning" });
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      const response = await fetch(`${serverUrl}/send-otp`, {
+      const response = await fetch("https://ws-chat-server-v6ih.onrender.com/send-otp", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: `+91${userContact}`,
-          otp: generatedOtp
-        })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ phone }),
+        credentials: "include" // 🔐 Needed if server uses credentials
       });
 
-      const result = await response.json();
-      if (!result.success) {
-        alert("❌ Failed to send OTP: " + result.error);
+      const data = await response.json();
+
+      if (response.ok) {
+        setSnack({ open: true, message: data.message, type: "success" });
       } else {
-        alert("✅ OTP sent to your mobile number.");
+        throw new Error(data.error || "Failed to send OTP");
       }
-    } catch (err) {
-      alert("❌ Error while sending OTP.");
-      console.error(err);
+    } catch (error) {
+      setSnack({ open: true, message: error.message, type: "error" });
     }
+
+    setLoading(false);
   };
-
-  const handleVerifyOtp = async () => {
-    try {
-      const response = await fetch(`${serverUrl}/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: `+91${userContact}`,
-          otp
-        })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        setIsVerified(true);
-        alert("✅ OTP verified successfully!");
-      } else {
-        alert("❌ " + result.message);
-      }
-    } catch (err) {
-      alert("❌ Error verifying OTP.");
-      console.error(err);
-    }
-  };
-
-  const handleJoin = () => {
-    setLoggedIn(true);
-  };
-
-  useEffect(() => {
-    if (!loggedIn) return;
-
-    ws.current = new WebSocket(serverUrl);
-
-    ws.current.onopen = () => {
-      ws.current.send(JSON.stringify({
-        type: "join",
-        username,
-        contactNumber: userContact,
-        room: "General"
-      }));
-    };
-
-    ws.current.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      setMessages(prev => [...prev, msg]);
-    };
-
-    return () => {
-      if (ws.current) {
-        ws.current.send(JSON.stringify({ type: "leave", username, room: "General" }));
-        ws.current.close();
-      }
-    };
-  }, [loggedIn]);
-
-  const sendMessage = () => {
-    if (input && ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({
-        type: "message",
-        username,
-        text: input,
-        room: "General",
-        timestamp: new Date().toLocaleTimeString()
-      }));
-      setInput("");
-    }
-  };
-
-  if (!loggedIn) {
-    return (
-      <Container maxWidth="sm" sx={{ mt: 8 }}>
-        <Typography variant="h5" gutterBottom>🔐 Secure Chat Join</Typography>
-
-        <TextField
-          label="Your Name"
-          fullWidth
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          sx={{ mb: 2 }}
-          InputProps={{
-            endAdornment: isNameValid ? "✅" : username.length > 0 ? "❌" : ""
-          }}
-        />
-
-        <TextField
-          label="Mobile Number"
-          fullWidth
-          value={userContact}
-          onChange={(e) => setUserContact(e.target.value)}
-          sx={{ mb: 1 }}
-          InputProps={{
-            endAdornment: isMobileValid ? "✅" : userContact.length > 0 ? "❌" : ""
-          }}
-        />
-
-        {!otpSent && isMobileValid && (
-          <Button onClick={handleSendOtp} variant="outlined" sx={{ mb: 2 }}>
-            Send OTP
-          </Button>
-        )}
-
-        {otpSent && (
-          <>
-            <TextField
-              fullWidth
-              label="Enter OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              sx={{ mb: 1 }}
-            />
-            <Button onClick={handleVerifyOtp} variant="contained" sx={{ mb: 2 }} disabled={!otp}>
-              Verify OTP
-            </Button>
-          </>
-        )}
-
-        {isVerified && (
-          <Typography variant="body2" sx={{ color: "green", mb: 2 }}>✅ OTP Verified</Typography>
-        )}
-
-        <Button variant="contained" fullWidth disabled={!isFormValid} onClick={handleJoin}>
-          Join
-        </Button>
-      </Container>
-    );
-  }
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 4 }}>
-      <Typography variant="h5" gutterBottom>💬 Welcome, <b>{username}</b></Typography>
+    <Container maxWidth="sm" style={{ marginTop: "5rem", textAlign: "center" }}>
+      <Typography variant="h5" gutterBottom>
+        🔐 Enter your phone to receive OTP
+      </Typography>
 
-      <Paper sx={{ height: 350, overflowY: "auto", p: 2, mb: 2 }}>
-        <List>
-          {messages.map((msg, idx) => (
-            <ListItem key={idx}>
-              <ListItemText
-                primary={
-                  msg.type === "message"
-                    ? <span><b>{msg.username}</b> ({msg.timestamp}): {msg.text}</span>
-                    : `🔔 ${msg.text}`
-                }
-              />
-            </ListItem>
-          ))}
-        </List>
-      </Paper>
+      <TextField
+        label="Phone Number"
+        variant="outlined"
+        fullWidth
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        style={{ marginBottom: "1.5rem" }}
+      />
 
-      <Box display="flex" gap={1}>
-        <TextField
-          fullWidth
-          label="Type a message..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <Button variant="contained" onClick={sendMessage}>Send</Button>
-      </Box>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleSendOtp}
+        disabled={loading}
+        fullWidth
+      >
+        {loading ? <CircularProgress size={24} /> : "Send OTP"}
+      </Button>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={() => setSnack({ ...snack, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnack({ ...snack, open: false })}
+          severity={snack.type}
+          sx={{ width: "100%" }}
+        >
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
-};
+}
 
 export default App;
