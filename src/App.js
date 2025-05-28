@@ -1,164 +1,149 @@
-// App.js (Frontend - Room Join Request with Admin Approval)
-import React, { useState, useEffect } from "react";
-import io from "socket.io-client";
+// App.js
+import React, { useEffect, useState } from "react";
 import {
-  Container,
-  TextField,
-  Button,
-  Typography,
-  Snackbar,
-  Alert,
-  Box,
-  CircularProgress,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemButton,
-  Divider
+  Container, TextField, Button, Typography, Snackbar, Alert, Box, CircularProgress
 } from "@mui/material";
+import io from "socket.io-client";
 
 const socket = io("https://ws-chat-server-v6ih.onrender.com", {
   withCredentials: true
 });
 
 function App() {
-  const [room, setRoom] = useState("");
-  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [name, setName] = useState("");
+  const [room, setRoom] = useState("FAMILY");
   const [isVerified, setIsVerified] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
+  const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [snack, setSnack] = useState({ open: false, message: "", type: "success" });
+  const [snack, setSnack] = useState({ open: false, message: "", type: "info" });
 
   useEffect(() => {
-    socket.on("receive-message", ({ user, message }) => {
-      setChat((prev) => [...prev, { user, message }]);
+    socket.on("receive-message", (msg) => {
+      setChat((prev) => [...prev, msg]);
     });
 
-    socket.on("pending-requests", (requests) => {
-      setPendingRequests(requests);
+    socket.on("chat-history", (msgs) => {
+      setChat(msgs);
+      setIsApproved(true);
+    });
+
+    socket.on("waiting-approval", () => {
+      setSnack({ open: true, message: "⏳ Waiting for approval...", type: "info" });
+    });
+
+    socket.on("user-approved", ({ room: r, phone: p }) => {
+      if (p === phone && r === room) {
+        socket.emit("request-join", { room, user: name, phone });
+      }
+    });
+
+    socket.on("pending-requests", ({ room: r, pending }) => {
+      if (r === room) setPending(pending);
     });
 
     return () => {
       socket.off("receive-message");
+      socket.off("chat-history");
+      socket.off("user-approved");
       socket.off("pending-requests");
+      socket.off("waiting-approval");
     };
-  }, []);
+  }, [room, phone]);
 
   const sendOtp = async () => {
-    if (!phone) return;
     setLoading(true);
-    try {
-      const res = await fetch("https://ws-chat-server-v6ih.onrender.com/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone })
-      });
-      const data = await res.json();
-      setSnack({ open: true, message: data.message, type: res.ok ? "success" : "error" });
-    } catch (err) {
-      setSnack({ open: true, message: "Failed to send OTP", type: "error" });
-    }
+    const res = await fetch("https://ws-chat-server-v6ih.onrender.com/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    setSnack({ open: true, message: data.message, type: res.ok ? "success" : "error" });
     setLoading(false);
   };
 
   const verifyOtp = async () => {
-    if (!otp || !phone) return;
     setLoading(true);
-    try {
-      const res = await fetch("https://ws-chat-server-v6ih.onrender.com/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp })
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setIsVerified(true);
-        setSnack({ open: true, message: data.message, type: "success" });
-      } else {
-        setSnack({ open: true, message: data.message, type: "error" });
-      }
-    } catch (err) {
-      setSnack({ open: true, message: "OTP verification failed", type: "error" });
+    const res = await fetch("https://ws-chat-server-v6ih.onrender.com/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, otp })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      setIsVerified(true);
+      setSnack({ open: true, message: data.message, type: "success" });
+    } else {
+      setSnack({ open: true, message: data.message, type: "error" });
     }
     setLoading(false);
   };
 
-  const requestToJoinRoom = () => {
-    if (room && name && isVerified) {
-      socket.emit("request-join-room", { room, user: name, phone });
-    }
+  const requestJoin = () => {
+    socket.emit("request-join", { room, user: name, phone });
   };
 
-  const approveRequest = (userPhone) => {
-    socket.emit("approve-user", { room, phone: userPhone });
+  const approveUser = (p) => {
+    socket.emit("approve-user", { room, phone: p });
   };
 
   const sendMessage = () => {
-    if (message.trim()) {
-      socket.emit("send-message", { room, message, user: name });
-      setChat((prev) => [...prev, { user: name, message }]);
-      setMessage("");
-    }
+    if (!message.trim()) return;
+    socket.emit("send-message", { room, user: name, message });
+    setMessage("");
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        🔐 Chat Room with Admin Approval
-      </Typography>
+    <Container maxWidth="sm" sx={{ mt: 4 }}>
+      <Typography variant="h4" gutterBottom>💬 WhatsApp-Style Chat App</Typography>
 
       {!isVerified ? (
-        <Box>
-          <TextField label="Your Name" value={name} onChange={(e) => setName(e.target.value)} fullWidth sx={{ mb: 2 }} />
-          <TextField label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth sx={{ mb: 2 }} />
-          <Button onClick={sendOtp} variant="outlined" disabled={loading} fullWidth>
+        <>
+          <TextField label="Name" fullWidth value={name} onChange={(e) => setName(e.target.value)} sx={{ mb: 2 }} />
+          <TextField label="Phone" fullWidth value={phone} onChange={(e) => setPhone(e.target.value)} sx={{ mb: 2 }} />
+          <Button onClick={sendOtp} variant="outlined" fullWidth disabled={loading}>
             {loading ? <CircularProgress size={24} /> : "Send OTP"}
           </Button>
-          <TextField label="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} fullWidth sx={{ my: 2 }} />
-          <Button onClick={verifyOtp} variant="contained" disabled={loading} fullWidth>
+          <TextField label="OTP" fullWidth value={otp} onChange={(e) => setOtp(e.target.value)} sx={{ mt: 2, mb: 2 }} />
+          <Button onClick={verifyOtp} variant="contained" fullWidth disabled={loading}>
             {loading ? <CircularProgress size={24} /> : "Verify OTP"}
           </Button>
-        </Box>
+        </>
+      ) : !isApproved ? (
+        <>
+          <TextField label="Room Name" fullWidth value={room} onChange={(e) => setRoom(e.target.value)} sx={{ mb: 2 }} />
+          <Button onClick={requestJoin} variant="contained" color="primary" fullWidth>
+            Request to Join Room
+          </Button>
+        </>
       ) : (
         <>
-          <TextField label="Room Name" value={room} onChange={(e) => setRoom(e.target.value)} fullWidth sx={{ mb: 2 }} />
-          <Button variant="contained" color="primary" onClick={requestToJoinRoom} fullWidth>
-            🚪 Request to Join Room
-          </Button>
-
-          <Box my={2}>
-            <TextField label="Message" value={message} onChange={(e) => setMessage(e.target.value)} fullWidth sx={{ mb: 1 }} />
-            <Button onClick={sendMessage} variant="contained" fullWidth>
-              Send
-            </Button>
-          </Box>
-
-          <Typography variant="h6">💬 Messages</Typography>
-          <Box sx={{ maxHeight: 300, overflowY: "auto", border: "1px solid #ccc", borderRadius: 2, p: 2 }}>
-            {chat.map((c, i) => (
-              <Box key={i} mb={1}>
-                <strong>{c.user}:</strong> {c.message}
-              </Box>
+          <Typography variant="h6">Room: {room}</Typography>
+          <Box sx={{ maxHeight: 300, overflowY: "auto", p: 1, border: "1px solid #ccc", mb: 2 }}>
+            {chat.map((msg, i) => (
+              <Typography key={i}><strong>{msg.user}:</strong> {msg.message} <small>({msg.time})</small></Typography>
             ))}
           </Box>
+          <TextField label="Your Message" fullWidth value={message} onChange={(e) => setMessage(e.target.value)} />
+          <Button variant="contained" sx={{ mt: 1 }} onClick={sendMessage} fullWidth>
+            Send
+          </Button>
 
-          {pendingRequests.length > 0 && (
-            <Box mt={4}>
-              <Typography variant="h6">🕒 Pending Requests</Typography>
-              <List>
-                {pendingRequests.map((req, i) => (
-                  <ListItem key={i} disablePadding>
-                    <ListItemText primary={`${req.user} (${req.phone})`} />
-                    <ListItemButton onClick={() => approveRequest(req.phone)}>Approve</ListItemButton>
-                  </ListItem>
-                ))}
-              </List>
-              <Divider />
-            </Box>
+          {pending.length > 0 && (
+            <>
+              <Typography variant="h6" sx={{ mt: 3 }}>Pending Join Requests:</Typography>
+              {pending.map((p, i) => (
+                <Box key={i} display="flex" justifyContent="space-between" alignItems="center">
+                  <Typography>{p}</Typography>
+                  <Button variant="outlined" size="small" onClick={() => approveUser(p)}>Approve</Button>
+                </Box>
+              ))}
+            </>
           )}
         </>
       )}
