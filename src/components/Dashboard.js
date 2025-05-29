@@ -18,7 +18,7 @@ const Dashboard = () => {
   const userData = localStorage.getItem("user");
   const user = JSON.parse(userData);
   const name = user?.name;
-  const phone = user?.phone;
+  const phone = user?.phone?.replace("+91", "");;
 
   const [users, setUsers] = useState([]);
   const [snack, setSnack] = useState({ open: false, message: "", type: "success" });
@@ -28,7 +28,7 @@ const Dashboard = () => {
     const userData = localStorage.getItem("user");
     const user = JSON.parse(userData);
     const name = user?.name;
-    const phone = user?.phone;
+    const phone = user?.phone?.replace("+91", "");
   
     console.log(name, "name & phone -->", phone);
   
