@@ -55,7 +55,7 @@ const Dashboard = () => {
 
   const sendRequest = async (to) => {
     try {
-      const res = await axios.post("/send-request", { from: phone, to });
+      const res = await axios.post("https://ws-chat-server-v6ih.onrender.com/send-request", { from: phone, to });
       setSnack({ open: true, message: res.data.message, type: "success" });
     } catch {
       setSnack({ open: true, message: "Request failed", type: "error" });
