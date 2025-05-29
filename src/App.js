@@ -1,23 +1,27 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import Home from './components/Home';
-import CreateAccount from './components/CreateAccount';
-import OtpVerification from './components/OtpVerification';
-import Dashboard from './components/Dashboard';
-import Chat from './components/Chat';
-import GroupSettings from './components/GroupSettings';
-import GroupChat from './components/GroupChat';
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import VerifyOtp from "./pages/VerifyOtp";
+import Dashboard from "./components/Dashboard";
+import Chat from "./components/Chat";
+import GroupChat from "./components/GroupChat";
+import GroupSettings from "./components/GroupSettings";
+import JoinGroup from './components/JoinGroup';
+import CreateAccount from "./pages/CreateAccount";
+
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/create-account" element={<CreateAccount />} />
-      <Route path="/verify-otp" element={<OtpVerification />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
       <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/chat/:contact" element={<Chat />} />
-      <Route path="/groups" element={<GroupSettings />} />
-      <Route path="/group-chat/:groupId" element={<GroupChat />} />
+      <Route path="/chat/:phone" element={<Chat />} />
+      <Route path="/settings" element={<GroupSettings />} />
+      <Route path="/group/:groupName" element={<GroupChat />} />
+      <Route path="/join" element={<JoinGroup />} />
+      <Route path="/create-account" element={<CreateAccount />}/>
+
     </Routes>
   );
 }
