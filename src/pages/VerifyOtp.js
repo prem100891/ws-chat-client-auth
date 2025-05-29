@@ -35,6 +35,10 @@ const VerifyOtp = () => {
       // });
       const res = await axios.post("https://ws-chat-server-v6ih.onrender.com/verify-otp", {
         phone, otp, name
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
 
       // const data = await res.json();
