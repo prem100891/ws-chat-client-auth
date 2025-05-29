@@ -37,7 +37,8 @@ const VerifyOtp = () => {
         headers: { 'Content-Type': 'application/json' }
       });
   
-      if (res.status === 200) {
+      console.log("res-->",res)
+      if (res.status === 200 || res.data.success == true || res.data.message == "OTP Verified") {
         localStorage.setItem("user", JSON.stringify({ phone, name }));
         setSnack({ open: true, message: "✅ OTP Verified", type: "success" });
         navigate("/dashboard");
