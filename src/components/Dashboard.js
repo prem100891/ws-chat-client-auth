@@ -69,6 +69,7 @@ const Dashboard = () => {
       const res = await axios.post("https://ws-chat-server-v6ih.onrender.com/accept-request", { from, to: phoneWithNineOne });
       setSnack({ open: true, message: res.data.message, type: "success" });
       fetchUsers(phone);
+      navigate(`/chat/${phoneWithNineOne}`)
     } catch {
       setSnack({ open: true, message: "Accept failed", type: "error" });
     }
