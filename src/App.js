@@ -1,20 +1,24 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import CreateAccount from './CreateAccount';
-import Dashboard from './Dashboard';
+import { Routes, Route } from 'react-router-dom';
+import Home from './components/Home';
+import CreateAccount from './components/CreateAccount';
+import OtpVerification from './components/OtpVerification';
+import Dashboard from './components/Dashboard';
+import Chat from './components/Chat';
+import GroupSettings from './components/GroupSettings';
+import GroupChat from './components/GroupChat';
 
 function App() {
   return (
-    <Router>
-      <div>
-        <h2>📱 Chat App</h2>
-        <Link to="/create-account">Create Account</Link>
-        <Routes>
-          <Route path="/create-account" element={<CreateAccount />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-        </Routes>
-      </div>
-    </Router>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/create-account" element={<CreateAccount />} />
+      <Route path="/verify-otp" element={<OtpVerification />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/chat/:contact" element={<Chat />} />
+      <Route path="/groups" element={<GroupSettings />} />
+      <Route path="/group-chat/:groupId" element={<GroupChat />} />
+    </Routes>
   );
 }
 
