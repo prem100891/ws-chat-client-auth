@@ -29,6 +29,7 @@ const Dashboard = () => {
     const user = JSON.parse(userData);
     const name = user?.name;
     const phone = user?.phone?.replace("+91", "");
+    const phoneWithNineOne = user?.phone;
   
     console.log(name, "name & phone -->", phone);
   
@@ -64,9 +65,9 @@ const Dashboard = () => {
 
   const acceptRequest = async (from) => {
     try {
-      const res = await axios.post("https://ws-chat-server-v6ih.onrender.com/accept-request", { from, to: phone });
+      const res = await axios.post("https://ws-chat-server-v6ih.onrender.com/accept-request", { from, to: phoneWithNineOne });
       setSnack({ open: true, message: res.data.message, type: "success" });
-      fetchUsers();
+      fetchUsers(phone);
     } catch {
       setSnack({ open: true, message: "Accept failed", type: "error" });
     }
