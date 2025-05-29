@@ -29,7 +29,7 @@ const Dashboard = () => {
       navigate("/");
       return;
     }
-    phone && etchUsers();
+    phone && fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
