@@ -25,36 +25,35 @@ const VerifyOtp = () => {
       setSnack({ open: true, message: "OTP is required", type: "warning" });
       return;
     }
-
+  
     setLoading(true);
+  
     try {
-      // const res = await fetch("https://ws-chat-server-v6ih.onrender.com/verify-otp", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ otp, phone, name }),
-      // });
       const res = await axios.post("https://ws-chat-server-v6ih.onrender.com/verify-otp", {
-        phone, otp, name
+        phone,
+        otp,
+        name
       }, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      // const data = await res.json();
-
+        headers: { 'Content-Type': 'application/json' }
+      });
+  
       if (res.status === 200) {
         localStorage.setItem("user", JSON.stringify({ phone, name }));
-        setSnack({ open: true, message: "OTP Verified", type: "success" });
+        setSnack({ open: true, message: "✅ OTP Verified", type: "success" });
         navigate("/dashboard");
-      } else {
-        setSnack({ open: true, message: data.message || "Verification failed", type: "error" });
       }
     } catch (err) {
-      setSnack({ open: true, message: "Server error", type: "error" });
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "❌ OTP Verification failed";
+  
+      setSnack({ open: true, message, type: "error" });
     }
+  
     setLoading(false);
   };
+  
 
   return (
     <Container maxWidth="sm" sx={{ mt: 6 }}>
