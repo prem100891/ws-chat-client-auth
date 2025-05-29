@@ -37,7 +37,7 @@ const VerifyOtp = () => {
         headers: { 'Content-Type': 'application/json' }
       });
   
-      console.log("res-->",res);
+      console.log("res-->",res.data.success, res.data.message);
       if (res.status === 200 || res.data.success == true || res.data.message == "OTP Verified") {
         console.log(res.data, 'res.data--->>')
         localStorage.setItem("user", JSON.stringify({ phone, name }));
