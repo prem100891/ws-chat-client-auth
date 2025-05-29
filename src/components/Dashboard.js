@@ -34,7 +34,7 @@ const Dashboard = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await axioa.get(`https://ws-chat-server-v6ih.onrender.com/users/${phone}`);
+      const res = await axios.get(`https://ws-chat-server-v6ih.onrender.com/users/${phone}`);
       setUsers(res.data);
     } catch {
       setSnack({ open: true, message: "Failed to load users", type: "error" });
