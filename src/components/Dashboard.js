@@ -11,7 +11,7 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import api from "../utils/api";
+import axios from "axios";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -24,22 +24,34 @@ const Dashboard = () => {
   const [snack, setSnack] = useState({ open: false, message: "", type: "success" });
 
   useEffect(() => {
-    console.log(name, phone, 'name & phone-->')
+
+    const userData = localStorage.getItem("user");
+    const user = JSON.parse(userData);
+    const name = user?.name;
+    const phone = user?.phone;
+  
+    console.log(name, "name & phone -->", phone);
+  
     if (!phone || !name) {
       navigate("/");
       return;
     }
-    phone && fetchUsers();
+  
+    fetchUsers(phone);
   }, []);
-
-  const fetchUsers = async () => {
+  
+  const fetchUsers = async (phone) => {
     try {
-      const res = await axios.get(`https://ws-chat-server-v6ih.onrender.com/users/${phone}`);
+      let url = `https://ws-chat-server-v6ih.onrender.com/users/${phone}`;
+      const res = await axios.get(url);
+      console.log("Prem res dash -->", res, "phone -->", phone, "url -->", url);
       setUsers(res.data);
-    } catch {
+    } catch (error) {
+      console.error("Error fetching users:", error);
       setSnack({ open: true, message: "Failed to load users", type: "error" });
     }
   };
+  
 
   const sendRequest = async (to) => {
     try {
