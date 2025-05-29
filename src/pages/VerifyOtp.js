@@ -38,11 +38,17 @@ const VerifyOtp = () => {
       });
   
       console.log("res-->",res.data.success, res.data.message);
-      if (res.status === 200 || res.data.success == true || res.data.message == "OTP Verified") {
-        console.log(res.data, 'res.data--->>')
+      if (
+        res.status === 200 &&
+        (res.data.success === true || res.data.message === "OTP Verified")
+      ) {
         localStorage.setItem("user", JSON.stringify({ phone, name }));
         setSnack({ open: true, message: "✅ OTP Verified", type: "success" });
-        navigate("/dashboard");
+    
+        // ✅ Delay to ensure smooth UX
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 500);
       }
     } catch (err) {
       const message =
