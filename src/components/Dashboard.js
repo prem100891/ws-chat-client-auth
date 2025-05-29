@@ -15,22 +15,26 @@ import api from "../utils/api";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const phone = localStorage.getItem("phone");
-  const name = localStorage.getItem("name");
+  const userData = localStorage.getItem("user");
+  const user = JSON.parse(userData);
+  const name = user?.name;
+  const phone = user?.phone;
+
   const [users, setUsers] = useState([]);
   const [snack, setSnack] = useState({ open: false, message: "", type: "success" });
 
   useEffect(() => {
+    console.log(name, phone, 'name & phone-->')
     if (!phone || !name) {
       navigate("/");
       return;
     }
-    fetchUsers();
+    phone && etchUsers();
   }, []);
 
   const fetchUsers = async () => {
     try {
-      const res = await api.get(`/users/${phone}`);
+      const res = await axioa.get(`https://ws-chat-server-v6ih.onrender.com/users/${phone}`);
       setUsers(res.data);
     } catch {
       setSnack({ open: true, message: "Failed to load users", type: "error" });
@@ -39,7 +43,7 @@ const Dashboard = () => {
 
   const sendRequest = async (to) => {
     try {
-      const res = await api.post("/send-request", { from: phone, to });
+      const res = await axios.post("/send-request", { from: phone, to });
       setSnack({ open: true, message: res.data.message, type: "success" });
     } catch {
       setSnack({ open: true, message: "Request failed", type: "error" });
@@ -48,7 +52,7 @@ const Dashboard = () => {
 
   const acceptRequest = async (from) => {
     try {
-      const res = await api.post("/accept-request", { from, to: phone });
+      const res = await axios.post("https://ws-chat-server-v6ih.onrender.com/accept-request", { from, to: phone });
       setSnack({ open: true, message: res.data.message, type: "success" });
       fetchUsers();
     } catch {
