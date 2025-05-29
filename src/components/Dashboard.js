@@ -19,6 +19,7 @@ const Dashboard = () => {
   const user = JSON.parse(userData);
   const name = user?.name;
   const phone = user?.phone?.replace("+91", "");;
+  const phoneWithNineOne = user?.phone;
 
   const [users, setUsers] = useState([]);
   const [snack, setSnack] = useState({ open: false, message: "", type: "success" });
@@ -29,7 +30,7 @@ const Dashboard = () => {
     const user = JSON.parse(userData);
     const name = user?.name;
     const phone = user?.phone?.replace("+91", "");
-    const phoneWithNineOne = user?.phone;
+    
   
     console.log(name, "name & phone -->", phone);
   
