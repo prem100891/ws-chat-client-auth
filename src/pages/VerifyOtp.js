@@ -9,6 +9,7 @@ import {
   Alert,
 } from "@mui/material";
 import { useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
 
 const VerifyOtp = () => {
   const navigate = useNavigate();
@@ -27,16 +28,20 @@ const VerifyOtp = () => {
 
     setLoading(true);
     try {
-      const res = await fetch("https://ws-chat-server-v6ih.onrender.com/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ otp, phone, name }),
-      });
+      // const res = await fetch("https://ws-chat-server-v6ih.onrender.com/verify-otp", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({ otp, phone, name }),
+      // });
+      const res = await axios.post("https://ws-chat-server-v6ih.onrender.com/verify-otp", {
+        phone, otp, name
+      })
 
-      const data = await res.json();
+      // const data = await res.json();
 
-      if (res.ok && data.success) {
+      if (res.status === 200) {
         localStorage.setItem("user", JSON.stringify({ phone, name }));
+        setSnack({ open: true, message: "OTP Verified", type: "success" });
         navigate("/dashboard");
       } else {
         setSnack({ open: true, message: data.message || "Verification failed", type: "error" });
